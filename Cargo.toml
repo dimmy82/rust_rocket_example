@@ -1,0 +1,7 @@
+[package]
+name = "rust_rocket_example"
+version = "0.1.0"
+authors = ["teki.sei <teki.sei@uzabase.com>"]
+edition = "2018"
+
+[dependencies]
