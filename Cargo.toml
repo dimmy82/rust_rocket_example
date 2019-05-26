@@ -10,6 +10,7 @@ diesel = { version = "1.4.0", features = ["mysql", "chrono"] }
 serde = "1.0.29"
 serde_json = "1.0"
 serde_derive = "1.0"
+serde_yaml = "0.7"
 reqwest = "0.9.11"
 chrono = "0.4.6"
 
