@@ -35,13 +35,13 @@ fn main() {
         .address(config.server.address)
         .port(config.server.port)
         .finalize() {
-        Ok(config) => { rocket::custom(config).mount("/", routes![yao]).launch(); }
+        Ok(config) => { rocket::custom(config).mount("/", routes![req_yao]).launch(); }
         Err(error) => println!("service launch failed: {:?}", error)
     };
 }
 
 #[get("/yao")]
-fn yao() -> &'static str {
+fn req_yao() -> &'static str {
     "ming"
 }
 
