@@ -10,6 +10,8 @@ extern crate rocket_contrib;
 extern crate serde_derive;
 
 mod config;
+mod object;
+mod table;
 
 use diesel::mysql::MysqlConnection;
 use reqwest::Client;
@@ -21,6 +23,8 @@ use rocket::http::RawStr;
 use rocket::config::{ConfigBuilder, Environment, Value};
 use std::collections::btree_map::BTreeMap;
 use url::percent_encoding::{utf8_percent_encode, DEFAULT_ENCODE_SET};
+use crate::object::{User, UserForInsert, UserForUpdate};
+use diesel::prelude::*;
 
 #[database("mysql_conn_pool")]
 pub struct MysqlConnPool(MysqlConnection);
@@ -53,7 +57,7 @@ fn main() {
         Ok(conf) => {
             rocket::custom(conf)
                 .attach(MysqlConnPool::fairing())
-                .mount("/", routes![req_yao, find_user])
+                .mount("/", routes![req_yao, find_user, create_user, update_user])
                 .launch();
         }
         Err(error) => println!("service launch failed: {:?}", error)
@@ -67,7 +71,47 @@ fn req_yao() -> &'static str {
 
 #[get("/user/<user_id>")]
 fn find_user(mysql_conn_pool: MysqlConnPool, user_id: &RawStr) -> String {
-    "not ready".to_string()
+    use crate::table::user::dsl::*;
+
+    match user_id.to_string().parse::<i32>() {
+        Ok(user_id) =>
+            match user.filter(id.eq(user_id))
+                .first::<User>(&mysql_conn_pool.0) {
+                Ok(u) => u.name,
+                Err(e) => format!("user not found. id: {}, error: {}", user_id, e)
+            }
+        Err(_e) => format!("the user id must be number. error: {}", user_id)
+    }
+}
+
+// デモしやすいために GET メソッドにした
+#[get("/user/_create/<user_name>")]
+fn create_user(mysql_conn_pool: MysqlConnPool, user_name: &RawStr) -> String {
+    use crate::table::user::dsl::*;
+
+    match diesel::insert_into(user)
+        .values(&UserForInsert { name: user_name.to_string() })
+        .execute(&mysql_conn_pool.0) {
+        Ok(_) => format!("create user succeed."),
+        Err(e) => format!("create user failed. name: {}, error: {}", user_name, e)
+    }
+}
+
+// デモしやすいために GET メソッドにした
+#[get("/user/_update/<user_id>/<user_name>")]
+fn update_user(mysql_conn_pool: MysqlConnPool, user_id: &RawStr, user_name: &RawStr) -> String {
+    use crate::table::user::dsl::*;
+
+    match user_id.to_string().parse::<i32>() {
+        Ok(user_id) =>
+            match diesel::update(user.filter(id.eq(user_id)))
+                .set(&UserForUpdate { name: user_name.to_string() })
+                .execute(&mysql_conn_pool.0) {
+                Ok(_) => format!("update user succeed."),
+                Err(e) => format!("update user failed. id: {}, name: {}, error: {}", user_id, user_name, e)
+            }
+        Err(_e) => format!("the user id must be number. error: {}", user_id)
+    }
 }
 
 fn read_config<T>(config_file: &str) -> T where T: DeserializeOwned {
