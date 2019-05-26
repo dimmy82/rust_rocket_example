@@ -2,9 +2,8 @@ server:
   address: "0.0.0.0"
   port: 9000
 database:
-  connection_pool:
-    url: "mysql://user:password@localhost:3306/prime"
-    pool_size: 20
+  url: "mysql://user:password@localhost:3306/prime"
+  pool_size: 20
 rest_api:
   host: "localhost"
   port: 9200

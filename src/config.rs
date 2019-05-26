@@ -19,11 +19,6 @@ pub struct RestApi {
 
 #[derive(Deserialize)]
 pub struct Database {
-    pub connection_pool: ConnectionPool,
-}
-
-#[derive(Deserialize)]
-pub struct ConnectionPool {
     pub url: String,
     pub pool_size: i64,
 }

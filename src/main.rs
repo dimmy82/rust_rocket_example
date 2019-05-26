@@ -17,10 +17,13 @@ use serde::de::DeserializeOwned;
 use std::fs::File;
 use std::io::Read;
 use crate::config::Config;
-use rocket::config::{ConfigBuilder, Environment};
+use rocket::http::RawStr;
+use rocket::config::{ConfigBuilder, Environment, Value};
+use std::collections::btree_map::BTreeMap;
+use url::percent_encoding::{utf8_percent_encode, DEFAULT_ENCODE_SET};
 
-#[database("db_mysql")]
-pub struct DbMysqlConnection(MysqlConnection);
+#[database("mysql_conn_pool")]
+pub struct MysqlConnPool(MysqlConnection);
 
 #[derive(Clone)]
 pub struct HttpClient {
@@ -34,8 +37,25 @@ fn main() {
     match ConfigBuilder::new(Environment::Production)
         .address(config.server.address)
         .port(config.server.port)
+        .extra(
+            "databases",
+            [
+                (
+                    "mysql_conn_pool".to_string(),
+                    [
+                        ("url".to_string(), Value::String(utf8_percent_encode(config.database.url.as_str(), DEFAULT_ENCODE_SET).to_string())),
+                        ("pool_size".to_string(), Value::Integer(config.database.pool_size)),
+                    ].iter().cloned().collect::<BTreeMap<String, Value>>()
+                ),
+            ].iter().cloned().collect::<BTreeMap<String, BTreeMap<String, Value>>>(),
+        )
         .finalize() {
-        Ok(config) => { rocket::custom(config).mount("/", routes![req_yao]).launch(); }
+        Ok(conf) => {
+            rocket::custom(conf)
+                .attach(MysqlConnPool::fairing())
+                .mount("/", routes![req_yao, find_user])
+                .launch();
+        }
         Err(error) => println!("service launch failed: {:?}", error)
     };
 }
@@ -43,6 +63,11 @@ fn main() {
 #[get("/yao")]
 fn req_yao() -> &'static str {
     "ming"
+}
+
+#[get("/user/<user_id>")]
+fn find_user(mysql_conn_pool: MysqlConnPool, user_id: &RawStr) -> String {
+    "not ready".to_string()
 }
 
 fn read_config<T>(config_file: &str) -> T where T: DeserializeOwned {
