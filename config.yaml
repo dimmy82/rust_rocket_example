@@ -6,4 +6,4 @@ database:
   pool_size: 20
 rest_api:
   host: "localhost"
-  port: 9200
+  port: 9000

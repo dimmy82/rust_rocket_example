@@ -12,13 +12,13 @@ pub struct Server {
 }
 
 #[derive(Deserialize)]
-pub struct RestApi {
-    pub host: String,
-    pub port: String,
-}
-
-#[derive(Deserialize)]
 pub struct Database {
     pub url: String,
     pub pool_size: i64,
+}
+
+#[derive(Deserialize, Clone)]
+pub struct RestApi {
+    pub host: String,
+    pub port: String,
 }

@@ -14,24 +14,25 @@ mod object;
 mod table;
 
 use diesel::mysql::MysqlConnection;
-use reqwest::Client;
+use reqwest::{Client, Url};
 use serde::de::DeserializeOwned;
 use std::fs::File;
 use std::io::Read;
-use crate::config::Config;
+use crate::config::{Config, RestApi};
 use rocket::http::RawStr;
 use rocket::config::{ConfigBuilder, Environment, Value};
 use std::collections::btree_map::BTreeMap;
 use url::percent_encoding::{utf8_percent_encode, DEFAULT_ENCODE_SET};
 use crate::object::{User, UserForInsert, UserForUpdate};
 use diesel::prelude::*;
+use rocket::State;
 
 #[database("mysql_conn_pool")]
 pub struct MysqlConnPool(MysqlConnection);
 
-#[derive(Clone)]
 pub struct HttpClient {
     pub reqwest_client: Client,
+    pub config: RestApi,
 }
 
 fn main() {
@@ -57,7 +58,11 @@ fn main() {
         Ok(conf) => {
             rocket::custom(conf)
                 .attach(MysqlConnPool::fairing())
-                .mount("/", routes![req_yao, find_user, create_user, update_user])
+                .manage(HttpClient {
+                    reqwest_client: reqwest::Client::new(),
+                    config: config.rest_api.clone(),
+                })
+                .mount("/", routes![req_yao, find_user, create_user, update_user, other_rest_api])
                 .launch();
         }
         Err(error) => println!("service launch failed: {:?}", error)
@@ -112,6 +117,14 @@ fn update_user(mysql_conn_pool: MysqlConnPool, user_id: &RawStr, user_name: &Raw
             }
         Err(_e) => format!("the user id must be number. error: {}", user_id)
     }
+}
+
+#[get("/rest_api")]
+fn other_rest_api(http_client: State<HttpClient>) -> String {
+    let config = &http_client.config;
+    let reqwest_client = &http_client.reqwest_client;
+    let url = Url::parse(format!("http://{}:{}/{}", config.host, config.port, "yao").as_str()).unwrap();
+    reqwest_client.get(url).send().unwrap().text().unwrap()
 }
 
 fn read_config<T>(config_file: &str) -> T where T: DeserializeOwned {
